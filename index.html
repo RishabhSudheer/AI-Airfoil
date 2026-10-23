@@ -1,27 +1,33 @@
-<title>AI Airfoil Surrogate</title>
+<!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
-<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Airfoil Surrogate</title>
 <style>
-/* Simple light layout: airfoil controls on the left, shape and calculator on the right.
+/* One page: airfoil and chart controls on the left; shape, point calculator and charts on the right.
    One light colour scheme on purpose (no dark mode). */
 :root {
   color-scheme: light;
-  --bg: #ffffff; --panel: #f7f7f8; --ink: #1f2328; --muted: #5f6368; --line: #d8dadd; --accent: #2f6fde;
+  --bg: #ffffff; --panel: #f7f7f8; --ink: #1f2328; --muted: #5f6368; --line: #d8dadd; --grid: #eceef0;
+  --accent: #2f6fde; --xfoil: #444b52;
+  --c1: #2f6fde; --c2: #d9480f; --c3: #2b8a3e; --c4: #7048e8; --c5: #c2255c;
   --warn-bg: #fff8e1; --warn-line: #e6c55a;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.5;
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.5;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
   padding-block: 24px 40px; }
-.wrap { max-width: 1150px; margin: 0 auto; display: grid; gap: 20px; }
+.wrap { max-width: 1200px; margin: 0 auto; display: grid; gap: 20px; }
 h1 { font-size: 28px; margin: 0; }
 h2 { font-size: 16px; margin: 0; }
 p { margin: 0; }
 .muted { color: var(--muted); }
 .layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; align-items: start; }
-@media (max-width: 820px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); } }
 .box { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
 label { font-size: 13px; font-weight: 600; }
 input[type=text], input[type=number] { width: 100%; font: inherit; color: var(--ink); background: #fff;
@@ -29,6 +35,7 @@ input[type=text], input[type=number] { width: 100%; font: inherit; color: var(--
 input:focus-visible, button:focus-visible, .sp-item:focus-visible, a:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .field { display: grid; gap: 4px; }
 .row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .shape svg { width: 100%; height: auto; display: block; background: #fff; border: 1px solid var(--line); border-radius: 4px; }
 .facts { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 14px; }
 .results { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
@@ -41,22 +48,58 @@ b, strong { font-weight: 700; }
 .warn { background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: 4px; padding: 10px 12px; font-size: 14px; }
 .warn ul { margin: 4px 0 0; padding-left: 18px; }
 details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
-details li { font-size: 14px; color: var(--muted); }
 a { color: var(--accent); }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; }
+.checks label { font-weight: 400; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+button { font: inherit; font-size: 14px; cursor: pointer; border-radius: 4px; padding: 6px 10px; border: 1px solid var(--line); background: #fff; color: var(--ink); }
+button:hover { border-color: var(--accent); }
+.charts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+@media (min-width: 1000px) { .charts { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.chart { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 12px; min-width: 0; }
+.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart svg text { font-family: var(--font); font-size: 10px; fill: var(--muted); }
+.chart svg .axlbl { font-size: 11px; fill: var(--ink); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend .ln { width: 18px; border-top: 2px solid currentColor; display: inline-block; }
+.legend .ln.dash { border-top-style: dashed; }
+.legend .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--xfoil); display: inline-block; }
+.legend .ring { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--ink); background: #fff; display: inline-block; }
 </style>
+</head>
+<body>
 
 <div class="wrap">
   <header>
     <h1>AI Airfoil Surrogate</h1>
-    <p class="muted">Pick or change an airfoil, then an angle of attack and a Reynolds number. A neural network predicts lift (CL) and drag (CD) instantly.</p>
+    <p class="muted">Pick or change an airfoil, then an angle of attack and a Reynolds number. A neural network predicts lift (CL) and drag (CD) instantly, and plots full curves below.</p>
     <p class="muted" id="modelInfo"></p>
-    <p><a href="charts.html">Open the charts page</a> to plot CL, drag polar and L/D curves.</p>
+    <p><a href="#calc">Calculator</a> · <a href="#charts">Charts</a></p>
   </header>
 
   <div class="layout">
-    <section class="box" id="shapePanel"></section>
+    <aside style="display:grid; gap:16px; min-width:0">
+      <section class="box" id="shapePanel"></section>
+      <section class="box">
+        <h2>Chart Reynolds numbers</h2>
+        <div class="checks" id="reChecks"></div>
+      </section>
+      <section class="box">
+        <h2>Chart angle range (degrees)</h2>
+        <div class="row3">
+          <div class="field"><label for="aFrom">From</label><input id="aFrom" type="number" value="-4" step="0.5"></div>
+          <div class="field"><label for="aTo">To</label><input id="aTo" type="number" value="14" step="0.5"></div>
+          <div class="field"><label for="aStep">Step</label><input id="aStep" type="number" value="0.5" step="0.25" min="0.1"></div>
+        </div>
+      </section>
+      <section class="box">
+        <h2>Compare</h2>
+        <p class="muted" style="font-size:14px" id="pinInfo">Pin the current airfoil, then pick another. The pinned one is drawn dashed on the charts.</p>
+        <div class="row2"><button id="pinBtn">Pin current</button><button id="unpinBtn">Clear pin</button></div>
+      </section>
+    </aside>
 
-    <div style="display:grid; gap:20px; min-width:0">
+    <main style="display:grid; gap:20px; min-width:0">
       <section class="box shape">
         <h2 id="afName">-</h2>
         <div class="facts" id="afFacts"></div>
@@ -64,7 +107,7 @@ a { color: var(--accent); }
         <p class="muted" style="font-size:13px" id="shapeLegend"></p>
       </section>
 
-      <section class="box">
+      <section class="box" id="calc">
         <h2>2. Flight condition</h2>
         <div class="row2">
           <div class="field"><label for="pAlpha">Angle of attack (degrees)</label><input id="pAlpha" type="number" value="4" step="0.5"></div>
@@ -81,7 +124,20 @@ a { color: var(--accent); }
           <p class="muted" style="font-size:14px; margin-top:6px">The network learned from lift and drag values calculated by XFOIL. It was not trained on angles below -4 or above 14 degrees, or on Reynolds numbers below 100,000 or above 2,000,000.</p>
         </details>
       </section>
-    </div>
+
+      <section class="box" id="charts" style="background:var(--bg)">
+        <h2>3. Curves</h2>
+        <p class="muted" style="font-size:14px">Lines are the neural network. Grey dots are XFOIL results, shown for unchanged library airfoils that XFOIL has run. The ringed point is the flight condition above.</p>
+        <div class="legend" id="legend"></div>
+        <div class="warn" id="chartWarn" hidden></div>
+        <div class="charts">
+          <div class="chart"><h2>CL vs angle of attack</h2><svg id="chCL" viewBox="0 0 360 260"></svg></div>
+          <div class="chart"><h2>Drag polar (CL vs CD)</h2><svg id="chPolar" viewBox="0 0 360 260"></svg></div>
+          <div class="chart"><h2>L/D vs angle of attack</h2><svg id="chLD" viewBox="0 0 360 260"></svg></div>
+        </div>
+        <p class="muted" style="font-size:14px">Hover over a line to read exact values.</p>
+      </section>
+    </main>
   </div>
 </div>
 
@@ -100,7 +156,7 @@ function forward(x) {
     for (let o = 0; o < L.b.length; o++) {
       let s = L.b[o]; const w = L.W[o];
       for (let i = 0; i < h.length; i++) s += w[i] * h[i];
-      out[o] = (li < M.layers.length - 1 && s < 0) ? 0 : s;   // ReLU on hidden layers
+      out[o] = (li < M.layers.length - 1 && s < 0) ? 0 : s;
     }
     h = out;
   });
@@ -366,8 +422,13 @@ function ShapePanel(container, opts) {
 </script>
 <script>
 "use strict";
-let current = null;
+// ---------- page state: one airfoil drives the shape view, the calculator and the charts ----------
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const color = (i) => css(`--c${(i % 5) + 1}`);
+const fmtRe = (r) => r >= 1e6 ? (r / 1e6).toLocaleString() + "M" : (r / 1e3).toLocaleString() + "k";
+const state = { af: null, pinned: null, res: [200000, 500000, 1000000] };
 
+// ---------- shape view ----------
 function drawShape(s) {
   const W = 600, H = 170, pad = 24, sc = W - 2 * pad;
   const path = (c) => "M" + c.map(([x, y]) => `${(pad + x * sc).toFixed(1)} ${(H / 2 - y * sc).toFixed(1)}`).join("L") + "Z";
@@ -378,20 +439,28 @@ function drawShape(s) {
   $("shapeLegend").textContent = s.modified ? "Blue = your changed shape, dashed grey = the original." : "";
 }
 
-function render(s) {
-  current = s;
+function onShape(s) {
+  state.af = s;
   const st = shapeStats(s.cst);
-  $("afName").textContent = s.label;
+  $("afName").textContent = s.label + (state.pinned ? `  vs  ${state.pinned.name} (pinned)` : "");
   $("afFacts").innerHTML = `<span>Max thickness <b>${(st.t * 100).toFixed(1)}%</b> at <b>${(st.xt * 100).toFixed(0)}%</b> chord</span>` +
     `<span>Max camber <b>${(st.c * 100).toFixed(1)}%</b></span><span>Source: ${s.source}</span>`;
   drawShape(s);
   renderPoint();
+  renderCharts();
+}
+
+// ---------- point calculator ----------
+function readPoint() {
+  const a = parseFloat($("pAlpha").value), re = parseFloat($("pRe").value);
+  return (Number.isFinite(a) && re > 0) ? { a, re } : null;
 }
 
 function renderPoint() {
-  const s = current; if (!s) return;
-  const a = parseFloat($("pAlpha").value), re = parseFloat($("pRe").value);
-  if (!Number.isFinite(a) || !(re > 0)) { ["oCL", "oCD", "oLD"].forEach((id) => { $(id).textContent = "-"; }); ["xCL", "xCD", "xLD"].forEach((id) => { $(id).textContent = ""; }); $("warnBox").hidden = true; return; }
+  const s = state.af; if (!s) return;
+  const pt = readPoint();
+  if (!pt) { ["oCL", "oCD", "oLD"].forEach((id) => { $(id).textContent = "-"; }); ["xCL", "xCD", "xLD"].forEach((id) => { $(id).textContent = ""; }); $("warnBox").hidden = true; return; }
+  const { a, re } = pt;
   const [cl, cd] = predict(s.cst, a, re);
   $("oCL").textContent = cl.toFixed(3); $("oCD").textContent = cd.toFixed(5); $("oLD").textContent = (cl / cd).toFixed(1);
   if (s.modified) {                          // compare with the original shape
@@ -408,9 +477,123 @@ function renderPoint() {
   $("warnBox").innerHTML = w.length ? `<b>Trust these numbers less:</b><ul>${w.map((t) => `<li>${t}</li>`).join("")}</ul>` : "";
 }
 
+// ---------- charts ----------
+function niceTicks(lo, hi, n = 5) {
+  const raw = (hi - lo || 1) / n, mag = 10 ** Math.floor(Math.log10(raw)), e = raw / mag;
+  const step = (e >= 7.5 ? 10 : e >= 3.5 ? 5 : e >= 1.5 ? 2 : 1) * mag, t = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + step * 1e-6; v += step) t.push(+v.toFixed(12));
+  return t;
+}
+const fmtTick = (v) => { const a = Math.abs(v); return a === 0 ? "0" : a < 0.01 ? v.toFixed(3) : a < 1 ? +v.toFixed(3) + "" : +v.toFixed(1) + ""; };
+
+function plot(svg, series, xlabel, ylabel) {
+  const W = 360, H = 260, m = { l: 46, r: 12, t: 10, b: 38 };
+  const all = series.flatMap((s) => s.pts).filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+  if (!all.length) { svg.innerHTML = ""; return; }
+  let x0 = Math.min(...all.map((p) => p[0])), x1 = Math.max(...all.map((p) => p[0]));
+  let y0 = Math.min(...all.map((p) => p[1])), y1 = Math.max(...all.map((p) => p[1]));
+  const px = (x1 - x0) * 0.04 || 1, py = (y1 - y0) * 0.06 || 1; x0 -= px; x1 += px; y0 -= py; y1 += py;
+  const X = (v) => m.l + (v - x0) / (x1 - x0) * (W - m.l - m.r), Y = (v) => H - m.b - (v - y0) / (y1 - y0) * (H - m.t - m.b);
+  const grid = css("--grid"), line = css("--line");
+  let s = "";
+  niceTicks(x0, x1).forEach((v) => { s += `<line x1="${X(v)}" x2="${X(v)}" y1="${m.t}" y2="${H - m.b}" stroke="${grid}"/><text x="${X(v)}" y="${H - m.b + 14}" text-anchor="middle">${fmtTick(v)}</text>`; });
+  niceTicks(y0, y1).forEach((v) => { s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="${grid}"/><text x="${m.l - 6}" y="${Y(v) + 3}" text-anchor="end">${fmtTick(v)}</text>`; });
+  s += `<rect x="${m.l}" y="${m.t}" width="${W - m.l - m.r}" height="${H - m.t - m.b}" fill="none" stroke="${line}"/>`;
+  s += `<text class="axlbl" x="${(m.l + W - m.r) / 2}" y="${H - 6}" text-anchor="middle">${xlabel}</text>`;
+  s += `<text class="axlbl" transform="translate(12 ${(m.t + H - m.b) / 2}) rotate(-90)" text-anchor="middle">${ylabel}</text>`;
+  series.forEach((se) => {
+    const pts = se.pts.filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+    if (se.dots) pts.forEach((p) => { s += `<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="2.4" fill="${css("--xfoil")}" fill-opacity="0.75"/>`; });
+    else if (se.marker) pts.forEach((p) => { s += `<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="4.5" fill="#fff" stroke="${css("--ink")}" stroke-width="2"/>`; });
+    else if (pts.length) s += `<path d="M${pts.map((p) => X(p[0]).toFixed(1) + " " + Y(p[1]).toFixed(1)).join("L")}" fill="none" stroke="${se.color}" stroke-width="${se.dash ? 1.5 : 2}" ${se.dash ? 'stroke-dasharray="5 4"' : ""}/>`;
+  });
+  s += `<g class="hover"></g>`;
+  svg.innerHTML = s;
+  const lines = series.filter((se) => !se.dots);
+  svg.onpointermove = (e) => {
+    const r = svg.getBoundingClientRect(), mx = (e.clientX - r.left) / r.width * W, my = (e.clientY - r.top) / r.height * H;
+    let best = null, bd = 1e9;
+    lines.forEach((se) => se.pts.forEach((p) => { const d = Math.hypot(X(p[0]) - mx, Y(p[1]) - my); if (d < bd) { bd = d; best = { p, se }; } }));
+    const g = svg.querySelector(".hover");
+    if (!best || bd > 30) { g.innerHTML = ""; return; }
+    const hx = X(best.p[0]), hy = Y(best.p[1]), left = hx > W - 150, col = best.se.color || css("--ink");
+    g.innerHTML = `<circle cx="${hx}" cy="${hy}" r="4" fill="${col}"/>
+      <rect x="${left ? hx - 146 : hx + 8}" y="${hy - 26}" width="138" height="20" rx="3" fill="#fff" stroke="${line}"/>
+      <text x="${left ? hx - 140 : hx + 14}" y="${hy - 12}" style="fill:${css("--ink")};font-weight:700">${best.se.fmt(best.p)}</text>`;
+  };
+  svg.onpointerleave = () => { svg.querySelector(".hover").innerHTML = ""; };
+}
+
+function sweep() {
+  let a0 = parseFloat($("aFrom").value), a1 = parseFloat($("aTo").value), st = parseFloat($("aStep").value);
+  if (!Number.isFinite(a0)) a0 = -4; if (!Number.isFinite(a1)) a1 = 14; if (!(st > 0)) st = 0.5;
+  if (a1 < a0) [a0, a1] = [a1, a0];
+  const n = Math.min(Math.floor((a1 - a0) / st + 1e-9), 600), out = [];
+  for (let i = 0; i <= n; i++) out.push(+(a0 + i * st).toFixed(4));
+  return out;
+}
+
+function renderCharts() {
+  const af = state.af; if (!af) return;
+  const alphas = sweep(), res = state.res.length ? state.res : [500000];
+  const xf = (!af.modified && af.id && M.xfoil && M.xfoil[af.id]) || {};
+  const sCL = [], sPol = [], sLD = [], legend = [];
+  res.forEach((re, i) => {
+    const col = color(i), tag = `Re ${fmtRe(re)}`;
+    const add = (cst, dash, label) => {
+      const pts = alphas.map((a) => { const [cl, cd] = predict(cst, a, re); return [a, cl, cd]; });
+      sCL.push({ pts: pts.map((p) => [p[0], p[1]]), color: col, dash, fmt: (p) => `${label} ${p[0]}°: CL ${p[1].toFixed(3)}` });
+      sPol.push({ pts: pts.map((p) => [p[2], p[1]]), color: col, dash, fmt: (p) => `${label}: CD ${p[0].toFixed(4)}, CL ${p[1].toFixed(2)}` });
+      sLD.push({ pts: pts.map((p) => [p[0], p[1] / p[2]]), color: col, dash, fmt: (p) => `${label} ${p[0]}°: L/D ${p[1].toFixed(1)}` });
+    };
+    add(af.cst, false, tag);
+    if (state.pinned) add(state.pinned.cst, true, `${state.pinned.name} ${fmtRe(re)}`);
+    const x = xf[String(Math.round(re))];
+    if (x) {
+      sCL.push({ dots: true, pts: x.map((p) => [p[0], p[1]]) });
+      sPol.push({ dots: true, pts: x.map((p) => [p[2], p[1]]) });
+      sLD.push({ dots: true, pts: x.map((p) => [p[0], p[1] / p[2]]) });
+    }
+    legend.push(`<span style="color:${col}"><i class="ln"></i><span style="color:var(--ink)">${tag}</span></span>`);
+  });
+  // the calculator's flight condition, ringed on every chart
+  const pt = readPoint();
+  if (pt) {
+    const [cl, cd] = predict(af.cst, pt.a, pt.re), lab = `Your point (Re ${fmtRe(pt.re)})`;
+    sCL.push({ marker: true, pts: [[pt.a, cl]], fmt: (p) => `${lab} ${p[0]}°: CL ${p[1].toFixed(3)}` });
+    sPol.push({ marker: true, pts: [[cd, cl]], fmt: (p) => `${lab}: CD ${p[0].toFixed(4)}, CL ${p[1].toFixed(2)}` });
+    sLD.push({ marker: true, pts: [[pt.a, cl / cd]], fmt: (p) => `${lab} ${p[0]}°: L/D ${p[1].toFixed(1)}` });
+    legend.push(`<span><i class="ring"></i>Your point (${pt.a}°, Re ${fmtRe(pt.re)})</span>`);
+  }
+  if (Object.keys(xf).length) legend.push(`<span><i class="dot"></i>XFOIL</span>`);
+  if (state.pinned) legend.push(`<span style="color:var(--muted)"><i class="ln dash"></i>${state.pinned.name} (pinned)</span>`);
+  $("legend").innerHTML = legend.join("");
+  plot($("chCL"), sCL, "angle of attack (degrees)", "CL");
+  plot($("chPolar"), sPol, "CD", "CL");
+  plot($("chLD"), sLD, "angle of attack (degrees)", "L/D");
+  const R = M.training_ranges || {}, w = [];
+  if (R.alpha && (alphas[0] < R.alpha[0] || alphas[alphas.length - 1] > R.alpha[1])) w.push(`Angles outside <b>${R.alpha[0]}</b> to <b>${R.alpha[1]}</b> degrees were never in the training data.`);
+  if (R.Re) res.forEach((r) => { if (r < R.Re[0] || r > R.Re[1]) w.push(`Re <b>${r.toLocaleString()}</b> is outside the trained range.`); });
+  if (outsideTraining(af.cst)) w.push("This shape is unusual compared with the training airfoils, so trust the curves less.");
+  $("chartWarn").hidden = !w.length; $("chartWarn").innerHTML = w.join(" ");
+}
+
+// ---------- wiring ----------
 const ov = (M.test_metrics || {}).overall || {};
 $("modelInfo").innerHTML = `Model: <b>35,970</b> parameters, trained on <b>${M.airfoils.filter((a) => a.split === "train").length.toLocaleString()}</b> airfoils.` +
   (ov.CL_MAE != null ? ` On airfoils it never saw, lift is off by <b>${ov.CL_MAE.toFixed(3)}</b> on average and drag by <b>${ov.CD_MAPE_pct.toFixed(1)}%</b>.` : "");
-["pAlpha", "pRe"].forEach((id) => $(id).addEventListener("input", renderPoint));
-ShapePanel($("shapePanel"), { listHeight: 320, start: "e214", onChange: render });
+
+$("reChecks").innerHTML = (M.reynolds_numbers || [1e5, 2e5, 5e5, 1e6, 2e6]).map((r) =>
+  `<label><input type="checkbox" value="${r}" ${state.res.includes(r) ? "checked" : ""}>${r.toLocaleString()}</label>`).join("");
+$("reChecks").querySelectorAll("input").forEach((el) => el.addEventListener("change", () => {
+  state.res = [...$("reChecks").querySelectorAll("input:checked")].map((c) => +c.value); renderCharts();
+}));
+["aFrom", "aTo", "aStep"].forEach((id) => $(id).addEventListener("input", renderCharts));
+["pAlpha", "pRe"].forEach((id) => $(id).addEventListener("input", () => { renderPoint(); renderCharts(); }));
+const pinText = "Pin the current airfoil, then pick another. The pinned one is drawn dashed on the charts.";
+$("pinBtn").addEventListener("click", () => { state.pinned = { name: state.af.label, cst: state.af.cst }; $("pinInfo").textContent = `Pinned: ${state.af.label}. Now pick or change the airfoil.`; onShape(state.af); });
+$("unpinBtn").addEventListener("click", () => { state.pinned = null; $("pinInfo").textContent = pinText; onShape(state.af); });
+ShapePanel($("shapePanel"), { listHeight: 260, start: "e214", onChange: onShape });
 </script>
+</body>
+</html>
